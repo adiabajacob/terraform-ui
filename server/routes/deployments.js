@@ -1,21 +1,25 @@
-import express from 'express';
-import pkg from '@prisma/client';
+import express from "express";
+import pkg from "@prisma/client";
 const { PrismaClient } = pkg;
-import { requireAdmin, requireCompanyAccess } from '../middleware/auth.js';
-import { createDeployment, getDeploymentLogs, destroyDeployment } from '../services/deployment.js';
-import { saveCredentials } from '../services/credentials.js';
+import { requireAdmin, requireCompanyAccess } from "../middleware/auth.js";
+import {
+  createDeployment,
+  getDeploymentLogs,
+  destroyDeployment,
+} from "../services/deployment.js";
+import { saveCredentials } from "../services/credentials.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // Get deployments
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { companyId } = req.query;
-    
+
     let whereClause = {};
-    
-    if (req.user.role === 'ADMIN') {
+
+    if (req.user.role === "ADMIN") {
       if (companyId) {
         whereClause.companyId = companyId;
       }
@@ -27,186 +31,233 @@ router.get('/', async (req, res) => {
       where: whereClause,
       include: {
         company: {
-          select: { id: true, name: true }
-        }
+          select: { id: true, name: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
     res.json(deployments);
   } catch (error) {
-    console.error('Error fetching deployments:', error);
-    res.status(500).json({ error: 'Failed to fetch deployments' });
+    console.error("Error fetching deployments:", error);
+    res.status(500).json({ error: "Failed to fetch deployments" });
   }
 });
 
 // Get deployment by ID
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const deployment = await prisma.deployment.findUnique({
       where: { id },
       include: {
         company: {
-          select: { id: true, name: true }
-        }
-      }
+          select: { id: true, name: true },
+        },
+      },
     });
 
     if (!deployment) {
-      return res.status(404).json({ error: 'Deployment not found' });
+      return res.status(404).json({ error: "Deployment not found" });
     }
 
     // Check access
-    if (req.user.role !== 'ADMIN' && req.user.companyId !== deployment.companyId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (
+      req.user.role !== "ADMIN" &&
+      req.user.companyId !== deployment.companyId
+    ) {
+      return res.status(403).json({ error: "Access denied" });
     }
 
     res.json(deployment);
   } catch (error) {
-    console.error('Error fetching deployment:', error);
-    res.status(500).json({ error: 'Failed to fetch deployment' });
+    console.error("Error fetching deployment:", error);
+    res.status(500).json({ error: "Failed to fetch deployment" });
   }
 });
 
 // Create deployment
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const {
       companyId,
       drConfig,
       iamRoleArn,
-      externalId
+      externalId,
+      solutionType = "READ_REPLICA", // Default to READ_REPLICA for backward compatibility
     } = req.body;
 
     // Validate required fields
     if (!companyId || !drConfig || !iamRoleArn || !externalId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Validate solution type
+    if (!["READ_REPLICA", "SNAPSHOT"].includes(solutionType)) {
+      return res
+        .status(400)
+        .json({
+          error: "Invalid solution type. Must be READ_REPLICA or SNAPSHOT",
+        });
     }
 
     // Check company access
-    if (req.user.role !== 'ADMIN' && req.user.companyId !== companyId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (req.user.role !== "ADMIN" && req.user.companyId !== companyId) {
+      return res.status(403).json({ error: "Access denied" });
     }
 
-    // Validate DR config required fields
-    const requiredFields = [
-      'aws_region',
-      'aws_read_replica_region',
-      'primary_db_identifier',
-      'read_replica_identifier',
-      'instance_class',
-      'vpc_cidr',
-      'public_subnet_cidrs',
-      'notification_email',
-      'environment',
-      'tag_name'
-    ];
+    // Validate DR config required fields based on solution type
+    if (solutionType === "READ_REPLICA") {
+      const requiredFields = [
+        "aws_region",
+        "aws_read_replica_region",
+        "primary_db_identifier",
+        "read_replica_identifier",
+        "instance_class",
+        "vpc_cidr",
+        "public_subnet_cidrs",
+        "notification_email",
+        "environment",
+        "tag_name",
+      ];
 
-    for (const field of requiredFields) {
-      if (!drConfig[field]) {
-        return res.status(400).json({ error: `Missing required field: ${field}` });
+      for (const field of requiredFields) {
+        if (!drConfig[field]) {
+          return res
+            .status(400)
+            .json({
+              error: `Missing required field for READ_REPLICA: ${field}`,
+            });
+        }
+      }
+    } else if (solutionType === "SNAPSHOT") {
+      const requiredFields = [
+        "primary_region",
+        "dr_region",
+        "primary_db_identifier",
+        "project_name",
+        "sns_email",
+      ];
+
+      for (const field of requiredFields) {
+        if (!drConfig[field]) {
+          return res
+            .status(400)
+            .json({ error: `Missing required field for SNAPSHOT: ${field}` });
+        }
       }
     }
 
     // Save credentials first
     await saveCredentials(companyId, iamRoleArn, externalId);
 
-    // Create deployment
-    const deployment = await createDeployment(companyId, drConfig);
+    // Create deployment with solution type
+    const deployment = await createDeployment(
+      companyId,
+      drConfig,
+      solutionType
+    );
 
     res.status(201).json(deployment);
   } catch (error) {
-    console.error('Error creating deployment:', error);
-    res.status(500).json({ 
-      error: 'Failed to create deployment',
-      message: error.message 
+    console.error("Error creating deployment:", error);
+    res.status(500).json({
+      error: "Failed to create deployment",
+      message: error.message,
     });
   }
 });
 
 // Get deployment logs
-router.get('/:id/logs', async (req, res) => {
+router.get("/:id/logs", async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const deployment = await prisma.deployment.findUnique({
       where: { id },
-      select: { id: true, companyId: true, logs: true }
+      select: { id: true, companyId: true, logs: true },
     });
 
     if (!deployment) {
-      return res.status(404).json({ error: 'Deployment not found' });
+      return res.status(404).json({ error: "Deployment not found" });
     }
 
     // Check access
-    if (req.user.role !== 'ADMIN' && req.user.companyId !== deployment.companyId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (
+      req.user.role !== "ADMIN" &&
+      req.user.companyId !== deployment.companyId
+    ) {
+      return res.status(403).json({ error: "Access denied" });
     }
 
     const logs = await getDeploymentLogs(id);
     res.json({ logs });
   } catch (error) {
-    console.error('Error fetching logs:', error);
-    res.status(500).json({ error: 'Failed to fetch logs' });
+    console.error("Error fetching logs:", error);
+    res.status(500).json({ error: "Failed to fetch logs" });
   }
 });
 
 // Destroy deployment
-router.post('/:id/destroy', async (req, res) => {
+router.post("/:id/destroy", async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const deployment = await prisma.deployment.findUnique({
       where: { id },
-      select: { id: true, companyId: true, status: true }
+      select: { id: true, companyId: true, status: true },
     });
 
     if (!deployment) {
-      return res.status(404).json({ error: 'Deployment not found' });
+      return res.status(404).json({ error: "Deployment not found" });
     }
 
     // Check access
-    if (req.user.role !== 'ADMIN' && req.user.companyId !== deployment.companyId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (
+      req.user.role !== "ADMIN" &&
+      req.user.companyId !== deployment.companyId
+    ) {
+      return res.status(403).json({ error: "Access denied" });
     }
 
     // Only allow destroy of successful deployments
-    if (deployment.status !== 'SUCCEEDED') {
-      return res.status(400).json({ error: 'Can only destroy successful deployments' });
+    if (deployment.status !== "SUCCEEDED") {
+      return res
+        .status(400)
+        .json({ error: "Can only destroy successful deployments" });
     }
 
     const destroyDeploymentRecord = await destroyDeployment(id);
     res.status(201).json(destroyDeploymentRecord);
   } catch (error) {
-    console.error('Error destroying deployment:', error);
-    res.status(500).json({ 
-      error: 'Failed to destroy deployment',
-      message: error.message 
+    console.error("Error destroying deployment:", error);
+    res.status(500).json({
+      error: "Failed to destroy deployment",
+      message: error.message,
     });
   }
 });
 
 // Update deployment status (for manual status updates)
-router.patch('/:id/status', requireAdmin, async (req, res) => {
+router.patch("/:id/status", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    if (!["PENDING", "RUNNING", "SUCCEEDED", "FAILED"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
     }
 
     const deployment = await prisma.deployment.update({
       where: { id },
-      data: { status }
+      data: { status },
     });
 
     res.json(deployment);
   } catch (error) {
-    console.error('Error updating deployment status:', error);
-    res.status(500).json({ error: 'Failed to update deployment status' });
+    console.error("Error updating deployment status:", error);
+    res.status(500).json({ error: "Failed to update deployment status" });
   }
 });
 

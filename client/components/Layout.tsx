@@ -1,64 +1,42 @@
-import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Shield, Building2, User, Wifi, WifiOff } from 'lucide-react';
-import { useWebSocket } from '../contexts/WebSocketContext';
+import React from "react";
+import { useAuth } from "../contexts/AuthContext";
 
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
-  const { connected } = useWebSocket();
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+      <nav className="bg-brand-primary text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <Shield className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-xl font-semibold text-gray-900">
-                AWS RDS DR Manager
-              </h1>
+              <div className="flex-shrink-0">
+                <h1 className="text-xl font-bold">Terraform DR Manager</h1>
+              </div>
             </div>
-            
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                {connected ? (
-                  <Wifi className="h-4 w-4 text-green-500" />
-                ) : (
-                  <WifiOff className="h-4 w-4 text-red-500" />
-                )}
-                <span className="text-sm text-gray-500">
-                  {connected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  {user?.role === 'ADMIN' ? (
-                    <User className="h-4 w-4 text-purple-500" />
-                  ) : (
-                    <Building2 className="h-4 w-4 text-blue-500" />
-                  )}
-                  <span className="text-sm text-gray-700">
-                    {user?.role === 'ADMIN' ? 'Admin' : user?.company?.name}
-                  </span>
-                </div>
-                
-                <span className="text-sm text-gray-500">
-                  {user?.email}
-                </span>
-                
-                <button
-                  onClick={logout}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
+              <span className="text-sm">
+                Welcome, {user?.company?.name || user?.email}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="bg-brand-secondary hover:bg-brand-secondary/90 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>
-      </header>
-      
+      </nav>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>

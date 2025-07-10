@@ -1,94 +1,75 @@
-import React, { useEffect } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import React from "react";
+import { CheckCircle, XCircle, AlertTriangle, Info, X } from "lucide-react";
 
 interface NotificationToastProps {
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message?: string;
+  type: "success" | "error" | "warning" | "info";
+  message: string;
   onClose: () => void;
-  autoClose?: boolean;
-  duration?: number;
 }
 
 const NotificationToast: React.FC<NotificationToastProps> = ({
   type,
-  title,
   message,
   onClose,
-  autoClose = true,
-  duration = 5000
 }) => {
-  useEffect(() => {
-    if (autoClose) {
-      const timer = setTimeout(onClose, duration);
-      return () => clearTimeout(timer);
-    }
-  }, [autoClose, duration, onClose]);
-
-  const getIcon = () => {
+  const getToastConfig = () => {
     switch (type) {
-      case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'error':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-      case 'info':
-        return <Info className="h-5 w-5 text-blue-500" />;
+      case "success":
+        return {
+          icon: CheckCircle,
+          className: "bg-green-50 border-green-200 text-green-800",
+          iconClassName: "text-green-400",
+        };
+      case "error":
+        return {
+          icon: XCircle,
+          className:
+            "bg-brand-secondary/10 border-brand-secondary/20 text-brand-secondary",
+          iconClassName: "text-brand-secondary",
+        };
+      case "warning":
+        return {
+          icon: AlertTriangle,
+          className: "bg-yellow-50 border-yellow-200 text-yellow-800",
+          iconClassName: "text-yellow-400",
+        };
+      case "info":
+        return {
+          icon: Info,
+          className:
+            "bg-brand-primary/10 border-brand-primary/20 text-brand-primary",
+          iconClassName: "text-brand-primary",
+        };
+      default:
+        return {
+          icon: Info,
+          className: "bg-gray-50 border-gray-200 text-gray-800",
+          iconClassName: "text-gray-400",
+        };
     }
   };
 
-  const getBackgroundColor = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-50 border-green-200';
-      case 'error':
-        return 'bg-red-50 border-red-200';
-      case 'warning':
-        return 'bg-yellow-50 border-yellow-200';
-      case 'info':
-        return 'bg-blue-50 border-blue-200';
-    }
-  };
-
-  const getTextColor = () => {
-    switch (type) {
-      case 'success':
-        return 'text-green-800';
-      case 'error':
-        return 'text-red-800';
-      case 'warning':
-        return 'text-yellow-800';
-      case 'info':
-        return 'text-blue-800';
-    }
-  };
+  const config = getToastConfig();
+  const IconComponent = config.icon;
 
   return (
-    <div className={`fixed top-4 right-4 max-w-sm w-full border rounded-lg shadow-lg z-50 ${getBackgroundColor()}`}>
-      <div className="p-4">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            {getIcon()}
-          </div>
-          <div className="ml-3 flex-1">
-            <h3 className={`text-sm font-medium ${getTextColor()}`}>
-              {title}
-            </h3>
-            {message && (
-              <p className={`mt-1 text-sm ${getTextColor()} opacity-90`}>
-                {message}
-              </p>
-            )}
-          </div>
-          <div className="ml-4 flex-shrink-0">
-            <button
-              onClick={onClose}
-              className={`inline-flex rounded-md p-1.5 hover:bg-opacity-20 hover:bg-gray-600 focus:outline-none ${getTextColor()}`}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+    <div
+      className={`fixed top-4 right-4 z-50 max-w-sm w-full bg-white border rounded-lg shadow-lg p-4 ${config.className}`}
+    >
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <IconComponent className={`h-5 w-5 ${config.iconClassName}`} />
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm font-medium">{message}</p>
+        </div>
+        <div className="ml-4 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>

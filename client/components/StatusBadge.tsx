@@ -1,79 +1,58 @@
-import React from 'react';
-import { Clock, CheckCircle, XCircle, Activity, AlertTriangle } from 'lucide-react';
+import React from "react";
+import { CheckCircle, XCircle, Clock, Play } from "lucide-react";
 
 interface StatusBadgeProps {
-  status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
-  showIcon?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
 }
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ status, showIcon = true, size = 'md' }) => {
+const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const getStatusConfig = () => {
     switch (status) {
-      case 'PENDING':
+      case "PENDING":
         return {
           icon: Clock,
-          color: 'bg-gray-100 text-gray-800',
-          iconColor: 'text-gray-500'
+          text: "Pending",
+          className: "bg-yellow-100 text-yellow-800 border-yellow-200",
         };
-      case 'RUNNING':
+      case "RUNNING":
         return {
-          icon: Activity,
-          color: 'bg-orange-100 text-orange-800',
-          iconColor: 'text-orange-500'
+          icon: Play,
+          text: "Running",
+          className:
+            "bg-brand-primary/10 text-brand-primary border-brand-primary/20",
         };
-      case 'SUCCEEDED':
+      case "SUCCEEDED":
         return {
           icon: CheckCircle,
-          color: 'bg-green-100 text-green-800',
-          iconColor: 'text-green-500'
+          text: "Success",
+          className: "bg-green-100 text-green-800 border-green-200",
         };
-      case 'FAILED':
+      case "FAILED":
         return {
           icon: XCircle,
-          color: 'bg-red-100 text-red-800',
-          iconColor: 'text-red-500'
+          text: "Failed",
+          className:
+            "bg-brand-secondary/10 text-brand-secondary border-brand-secondary/20",
         };
       default:
         return {
-          icon: AlertTriangle,
-          color: 'bg-gray-100 text-gray-800',
-          iconColor: 'text-gray-500'
-        };
-    }
-  };
-
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'sm':
-        return {
-          badge: 'px-2 py-1 text-xs',
-          icon: 'h-3 w-3'
-        };
-      case 'md':
-        return {
-          badge: 'px-2 py-1 text-xs',
-          icon: 'h-4 w-4'
-        };
-      case 'lg':
-        return {
-          badge: 'px-3 py-1 text-sm',
-          icon: 'h-5 w-5'
+          icon: Clock,
+          text: "Unknown",
+          className: "bg-gray-100 text-gray-800 border-gray-200",
         };
     }
   };
 
   const config = getStatusConfig();
-  const sizeClasses = getSizeClasses();
-  const Icon = config.icon;
+  const IconComponent = config.icon;
 
   return (
-    <span className={`inline-flex items-center font-medium rounded-full ${config.color} ${sizeClasses.badge}`}>
-      {showIcon && (
-        <Icon className={`${sizeClasses.icon} ${config.iconColor} mr-1`} />
-      )}
-      {status}
-    </span>
+    <div
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.className}`}
+    >
+      <IconComponent className="h-3 w-3 mr-1" />
+      {config.text}
+    </div>
   );
 };
 

@@ -22,11 +22,16 @@ enum DeploymentStatus {
   FAILED
 }
 
+enum SolutionType {
+  READ_REPLICA
+  SNAPSHOT
+}
+
 model User {
-  id           String  @id @default(cuid())
-  email        String  @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   passwordHash String
-  role         Role    @default(COMPANY)
+  role         Role     @default(COMPANY)
   companyId    String?
   company      Company? @relation(fields: [companyId], references: [id])
   createdAt    DateTime @default(now())
@@ -36,15 +41,15 @@ model User {
 }
 
 model Company {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   name         String
   contactEmail String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  
-  users        User[]
-  deployments  Deployment[]
-  credentials  CompanyCredential[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users       User[]
+  deployments Deployment[]
+  credentials CompanyCredential[]
 
   @@map("companies")
 }
@@ -53,6 +58,7 @@ model Deployment {
   id                String           @id @default(cuid())
   companyId         String
   company           Company          @relation(fields: [companyId], references: [id])
+  solutionType      SolutionType     @default(READ_REPLICA)
   terraformVarsJson String           @db.Text
   status            DeploymentStatus @default(PENDING)
   logs              String?          @db.Text
@@ -63,13 +69,13 @@ model Deployment {
 }
 
 model CompanyCredential {
-  id          String  @id @default(cuid())
-  companyId   String  @unique
-  company     Company @relation(fields: [companyId], references: [id])
-  iamRoleArn  String
-  externalId  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  companyId  String   @unique
+  company    Company  @relation(fields: [companyId], references: [id])
+  iamRoleArn String
+  externalId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@map("company_credentials")
 }

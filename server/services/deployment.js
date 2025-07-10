@@ -8,23 +8,33 @@ import { broadcastToCompany } from "./websocket.js";
 
 const prisma = new PrismaClient();
 
-export const createDeployment = async (companyId, drConfig) => {
+export const createDeployment = async (
+  companyId,
+  drConfig,
+  solutionType = "READ_REPLICA"
+) => {
   try {
+    // Write tfvars file
+    await writeTfvarsFile(companyId, drConfig, solutionType);
+
     // Create deployment record
     const deployment = await prisma.deployment.create({
       data: {
         companyId,
+        solutionType,
         terraformVarsJson: JSON.stringify(drConfig),
         status: "PENDING",
       },
+      include: {
+        company: {
+          select: { id: true, name: true },
+        },
+      },
     });
 
-    // Write tfvars file
-    await writeTfvarsFile(companyId, drConfig);
-
-    // Start deployment process asynchronously
+    // Execute deployment asynchronously
     setTimeout(() => {
-      executeDeployment(deployment.id, companyId);
+      executeDeployment(deployment.id, companyId, solutionType);
     }, 1000);
 
     return deployment;
@@ -34,25 +44,62 @@ export const createDeployment = async (companyId, drConfig) => {
   }
 };
 
-const writeTfvarsFile = async (companyId, drConfig) => {
+const writeTfvarsFile = async (companyId, drConfig, solutionType) => {
   try {
-    const tfvarsDir = path.join(process.cwd(), "..", "terraform", "tfvars"); // Changed to terraform/tfvars subdirectory
+    // Determine the correct Terraform directory based on solution type
+    const terraformBaseDir =
+      solutionType === "SNAPSHOT" ? "snapshot-resources" : "terraform";
+    const tfvarsDir = path.join(
+      process.cwd(),
+      "..",
+      terraformBaseDir,
+      "tfvars"
+    );
     await fs.mkdir(tfvarsDir, { recursive: true });
 
-    const tfvarsContent = Object.entries(drConfig)
-      .filter(([key]) => !["iamRoleArn", "externalId"].includes(key)) // Exclude credentials
-      .map(([key, value]) => {
-        if (typeof value === "string") {
-          return `${key} = "${value}"`;
-        } else if (Array.isArray(value)) {
-          return `${key} = [${value.map((v) => `"${v}"`).join(", ")}]`;
-        } else {
-          return `${key} = ${value}`;
-        }
-      })
-      .join("\n");
+    let tfvarsContent;
 
-    const filePath = path.join(tfvarsDir, `company_${companyId}.tfvars`); // Now in terraform/tfvars dir
+    if (solutionType === "SNAPSHOT") {
+      // Generate tfvars content for snapshot solution
+      tfvarsContent = Object.entries(drConfig)
+        .filter(
+          ([key]) => !["iamRoleArn", "externalId", "solutionType"].includes(key)
+        ) // Exclude credentials and solution type
+        .map(([key, value]) => {
+          if (typeof value === "string") {
+            return `${key} = "${value}"`;
+          } else if (Array.isArray(value)) {
+            return `${key} = [${value.map((v) => `"${v}"`).join(", ")}]`;
+          } else if (typeof value === "object" && value !== null) {
+            // Handle nested objects like tags
+            const objectContent = Object.entries(value)
+              .map(([k, v]) => `    ${k} = "${v}"`)
+              .join("\n");
+            return `${key} = {\n${objectContent}\n  }`;
+          } else {
+            return `${key} = ${value}`;
+          }
+        })
+        .join("\n");
+    } else {
+      // Generate tfvars content for read replica solution (existing logic)
+      tfvarsContent = Object.entries(drConfig)
+        .filter(
+          ([key]) => !["iamRoleArn", "externalId", "solutionType"].includes(key)
+        ) // Exclude credentials and solution type
+        .map(([key, value]) => {
+          if (typeof value === "string") {
+            return `${key} = "${value}"`;
+          } else if (Array.isArray(value)) {
+            return `${key} = [${value.map((v) => `"${v}"`).join(", ")}]`;
+          } else {
+            return `${key} = ${value}`;
+          }
+        })
+        .join("\n");
+    }
+
+    const filePath = path.join(tfvarsDir, `company_${companyId}.tfvars`);
     await fs.writeFile(filePath, tfvarsContent);
 
     console.log(`Tfvars file written: ${filePath}`);
@@ -63,7 +110,7 @@ const writeTfvarsFile = async (companyId, drConfig) => {
   }
 };
 
-const executeDeployment = async (deploymentId, companyId) => {
+const executeDeployment = async (deploymentId, companyId, solutionType) => {
   let logs = "";
 
   try {
@@ -93,27 +140,29 @@ const executeDeployment = async (deploymentId, companyId) => {
       AWS_REGION: process.env.AWS_REGION || "us-east-1",
     };
 
-    // Execute terraform commands
+    // Determine the correct Terraform directory based on solution type
+    const terraformBaseDir =
+      solutionType === "SNAPSHOT" ? "snapshot-resources" : "terraform";
     const tfvarsFile = path.join(
       process.cwd(),
       "..",
-      "terraform",
+      terraformBaseDir,
       "tfvars",
       `company_${companyId}.tfvars`
-    ); // Changed to terraform/tfvars subdirectory
-    const terraformDir = path.join(process.cwd(), "..", "terraform");
+    );
+    const terraformDir = path.join(process.cwd(), "..", terraformBaseDir);
 
     // Check if terraform directory exists
     try {
       await fs.access(terraformDir);
     } catch (error) {
       throw new Error(
-        "Terraform directory not found. Please ensure terraform configuration exists in ./terraform/"
+        `Terraform directory not found. Please ensure terraform configuration exists in ./${terraformBaseDir}/`
       );
     }
 
     // Run terraform init
-    logs += "=== Running terraform init ===\n";
+    logs += `=== Running terraform init (${solutionType}) ===\n`;
     await runTerraformCommand(
       "init",
       [],
@@ -309,6 +358,7 @@ export const destroyDeployment = async (deploymentId) => {
 
     const companyId = deployment.companyId;
     const drConfig = JSON.parse(deployment.terraformVarsJson);
+    const solutionType = deployment.solutionType; // Get solution type from deployment record
 
     // Create destroy deployment record
     const destroyDeployment = await prisma.deployment.create({
@@ -321,7 +371,7 @@ export const destroyDeployment = async (deploymentId) => {
 
     // Execute terraform destroy
     setTimeout(() => {
-      executeDestroy(destroyDeployment.id, companyId, drConfig);
+      executeDestroy(destroyDeployment.id, companyId, drConfig, solutionType);
     }, 1000);
 
     return destroyDeployment;
@@ -331,7 +381,12 @@ export const destroyDeployment = async (deploymentId) => {
   }
 };
 
-const executeDestroy = async (deploymentId, companyId, drConfig) => {
+const executeDestroy = async (
+  deploymentId,
+  companyId,
+  drConfig,
+  solutionType
+) => {
   let logs = "";
 
   try {
@@ -347,14 +402,17 @@ const executeDestroy = async (deploymentId, companyId, drConfig) => {
       AWS_REGION: process.env.AWS_REGION || "us-east-1",
     };
 
+    // Determine the correct Terraform directory based on solution type
+    const terraformBaseDir =
+      solutionType === "SNAPSHOT" ? "snapshot-resources" : "terraform";
     const tfvarsFile = path.join(
       process.cwd(),
       "..",
-      "terraform",
+      terraformBaseDir,
       "tfvars",
       `company_${companyId}.tfvars`
-    ); // Changed to terraform/tfvars subdirectory
-    const terraformDir = path.join(process.cwd(), "..", "terraform");
+    );
+    const terraformDir = path.join(process.cwd(), "..", terraformBaseDir);
 
     // Select workspace for this company
     logs += "=== Selecting workspace ===\n";
