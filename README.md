@@ -5,10 +5,12 @@ A multi-tenant SaaS application for automating AWS RDS Disaster Recovery configu
 ## 🚀 Features
 
 ### Multi-Tenant Architecture
+
 - **Admin Users**: Manage companies and view all deployments
 - **Company Users**: Configure DR setups and manage their own deployments
 
 ### Core Functionality
+
 - **DR Configuration Form**: Intuitive web interface for setting up disaster recovery
 - **Real-time Deployment Logs**: Live WebSocket updates during Terraform execution
 - **Secure AWS Integration**: Uses IAM roles with External ID for secure access
@@ -16,6 +18,7 @@ A multi-tenant SaaS application for automating AWS RDS Disaster Recovery configu
 - **Automated Terraform Execution**: Backend handles infrastructure provisioning
 
 ### Security Features
+
 - JWT-based authentication
 - bcrypt password hashing
 - AWS IAM role assumption with External ID
@@ -25,6 +28,7 @@ A multi-tenant SaaS application for automating AWS RDS Disaster Recovery configu
 ## 🏗️ Architecture
 
 ### Tech Stack
+
 - **Frontend**: React 18 + Vite + Tailwind CSS
 - **Backend**: Node.js + Express
 - **Database**: PostgreSQL with Prisma ORM
@@ -33,6 +37,7 @@ A multi-tenant SaaS application for automating AWS RDS Disaster Recovery configu
 - **Authentication**: JWT tokens
 
 ### Database Schema
+
 ```
 User
 ├── id (String, Primary Key)
@@ -68,12 +73,14 @@ CompanyCredential
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - PostgreSQL 12+
 - Terraform CLI
 - AWS CLI (configured)
 
 ### 1. Clone and Install Dependencies
+
 ```bash
 git clone <repository-url>
 cd aws-rds-dr-saas
@@ -81,12 +88,15 @@ npm install
 ```
 
 ### 2. Environment Configuration
+
 Create a `.env` file in the root directory:
+
 ```bash
 cp .env.example .env
 ```
 
 Configure the following variables:
+
 ```env
 # Database
 DATABASE_URL="postgresql://username:password@localhost:5432/rds_dr_saas"
@@ -106,6 +116,7 @@ FRONTEND_URL="http://localhost:5173"
 ```
 
 ### 3. Database Setup
+
 ```bash
 # Generate Prisma client
 npm run db:generate
@@ -118,9 +129,11 @@ npm run db:seed
 ```
 
 ### 4. Terraform Setup
+
 Ensure your Terraform configuration is in the `terraform/` directory. The application will execute Terraform commands from this location.
 
 ### 5. Start the Application
+
 ```bash
 # Start backend server
 npm run server
@@ -130,12 +143,14 @@ npm run dev
 ```
 
 The application will be available at:
+
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3001
 
 ## 🔐 Default Admin Access
 
 After running the seed script, you can log in with:
+
 - **Email**: `admin@rds-dr.com`
 - **Password**: `admin123`
 
@@ -164,26 +179,27 @@ After running the seed script, you can log in with:
 
 ### DR Configuration Parameters
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| Primary AWS Region | Main region for your database | `eu-central-1` |
-| Read Replica Region | DR region for read replica | `eu-west-1` |
-| Primary DB Identifier | Name for primary database | `company-primary-db` |
-| Read Replica Identifier | Name for read replica | `company-read-replica` |
-| Instance Class | RDS instance type | `db.t3.micro` |
-| VPC CIDR | Network range for VPC | `172.16.0.0/16` |
-| Public Subnet CIDRs | Subnet ranges | `["172.16.1.0/24"]` |
-| Notification Email | Alert email address | `admin@company.com` |
-| Environment | Deployment environment | `production` |
-| Tag Name | Resource tag identifier | `CompanyDR` |
-| IAM Role ARN | AWS role for access | `arn:aws:iam::123:role/DR` |
-| External ID | Security identifier | `unique-external-id` |
+| Parameter               | Description                   | Example                    |
+| ----------------------- | ----------------------------- | -------------------------- |
+| Primary AWS Region      | Main region for your database | `eu-central-1`             |
+| Read Replica Region     | DR region for read replica    | `eu-west-1`                |
+| Primary DB Identifier   | Name for primary database     | `company-primary-db`       |
+| Read Replica Identifier | Name for read replica         | `company-read-replica`     |
+| Instance Class          | RDS instance type             | `db.t3.micro`              |
+| VPC CIDR                | Network range for VPC         | `172.16.0.0/16`            |
+| Public Subnet CIDRs     | Subnet ranges                 | `["172.16.1.0/24"]`        |
+| Notification Email      | Alert email address           | `admin@company.com`        |
+| Environment             | Deployment environment        | `production`               |
+| Tag Name                | Resource tag identifier       | `CompanyDR`                |
+| IAM Role ARN            | AWS role for access           | `arn:aws:iam::123:role/DR` |
+| External ID             | Security identifier           | `unique-external-id`       |
 
 ## 🔒 AWS IAM Setup
 
 ### Customer AWS Account Setup
 
 1. **Create IAM Role** in your AWS account:
+
 ```json
 {
   "Version": "2012-10-17",
@@ -205,6 +221,7 @@ After running the seed script, you can log in with:
 ```
 
 2. **Attach Required Policies**:
+
    - `AmazonRDSFullAccess`
    - `AmazonVPCFullAccess`
    - `AmazonSNSFullAccess`
@@ -215,6 +232,7 @@ After running the seed script, you can log in with:
 ### SaaS Platform Integration
 
 The platform uses AWS STS to assume the customer's role:
+
 1. Customer provides IAM Role ARN and External ID
 2. Platform validates credentials before saving
 3. During deployment, platform assumes role to get temporary credentials
@@ -237,6 +255,7 @@ The platform uses AWS STS to assume the customer's role:
 7. **Log Storage**: Stores complete logs for future reference
 
 ### File Structure
+
 ```
 tfvars/
 ├── company_123.tfvars
@@ -253,10 +272,12 @@ terraform/
 ## 🔧 API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/login` - User login
 - `POST /api/auth/register` - User registration
 
 ### Companies (Admin only)
+
 - `GET /api/companies` - List all companies
 - `GET /api/companies/:id` - Get company details
 - `POST /api/companies` - Create company
@@ -264,17 +285,20 @@ terraform/
 - `DELETE /api/companies/:id` - Delete company
 
 ### Deployments
+
 - `GET /api/deployments` - List deployments (filtered by role)
 - `GET /api/deployments/:id` - Get deployment details
 - `POST /api/deployments` - Create new deployment
 - `GET /api/deployments/:id/logs` - Get deployment logs
 
 ### Health Check
+
 - `GET /health` - Application health status
 
 ## 🔌 WebSocket Events
 
 ### Client to Server
+
 ```javascript
 {
   "type": "authenticate",
@@ -284,6 +308,7 @@ terraform/
 ```
 
 ### Server to Client
+
 ```javascript
 // Deployment status updates
 {
@@ -304,8 +329,9 @@ terraform/
 ## 🧪 Development
 
 ### Project Structure
+
 ```
-├── src/                    # Frontend React application
+├── client/                    # Frontend React application
 │   ├── components/         # Reusable UI components
 │   ├── contexts/          # React contexts (Auth, WebSocket)
 │   ├── pages/             # Page components
@@ -322,6 +348,7 @@ terraform/
 ```
 
 ### Available Scripts
+
 ```bash
 npm run dev          # Start frontend development server
 npm run server       # Start backend server
@@ -334,6 +361,7 @@ npm run db:seed      # Seed database with admin user
 ```
 
 ### Environment Variables
+
 - `DATABASE_URL`: PostgreSQL connection string
 - `JWT_SECRET`: Secret key for JWT token signing
 - `AWS_REGION`: Default AWS region
@@ -346,18 +374,21 @@ npm run db:seed      # Seed database with admin user
 ## 🛡️ Security Considerations
 
 ### Authentication & Authorization
+
 - JWT tokens with expiration
 - Role-based access control (RBAC)
 - Password hashing with bcrypt
 - Protected API routes with middleware
 
 ### AWS Security
+
 - No static AWS credentials stored
 - IAM role assumption with External ID
 - Temporary credential usage
 - Principle of least privilege
 
 ### Data Protection
+
 - Environment variable configuration
 - Secure credential storage
 - Input validation and sanitization
@@ -368,6 +399,7 @@ npm run db:seed      # Seed database with admin user
 ### Common Issues
 
 **Database Connection Errors**
+
 ```bash
 # Check PostgreSQL is running
 sudo systemctl status postgresql
@@ -377,22 +409,26 @@ DATABASE_URL="postgresql://user:pass@localhost:5432/dbname"
 ```
 
 **Terraform Execution Failures**
+
 - Verify AWS credentials and permissions
 - Check IAM role trust relationship
 - Ensure External ID matches
 - Review Terraform configuration syntax
 
 **WebSocket Connection Issues**
+
 - Check proxy configuration in vite.config.ts
 - Verify WebSocket URL in frontend
 - Ensure backend server is running
 
 **Authentication Problems**
+
 - Verify JWT_SECRET is set
 - Check token expiration
 - Ensure admin user exists (run seed)
 
 ### Logs and Debugging
+
 - Backend logs: Check console output from `npm run server`
 - Frontend logs: Open browser developer tools
 - Database logs: Check PostgreSQL logs
@@ -413,6 +449,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Support
 
 For support and questions:
+
 - Create an issue in the repository
 - Check the troubleshooting section
 - Review the API documentation
@@ -421,12 +458,16 @@ For support and questions:
 ---
 
 **⚠️ Production Deployment Notes:**
+
 - Change default admin password
 - Use strong JWT secrets
 - Configure proper SSL/TLS
 - Set up monitoring and logging
 - Review and harden security settings
 - Use environment-specific configurations# terraform-ui
+
 # terraform-ui
+
 # terraform-ui
+
 # terraform-ui
