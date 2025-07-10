@@ -126,6 +126,36 @@ const executeDeployment = async (deploymentId, companyId) => {
       }
     );
 
+    // Create or select workspace for this company
+    logs += "\n=== Managing workspace ===\n";
+    try {
+      // Try to create a new workspace
+      await runTerraformCommand(
+        "workspace",
+        ["new", companyId],
+        terraformDir,
+        env,
+        deploymentId,
+        companyId,
+        (output) => {
+          logs += output + "\n";
+        }
+      );
+    } catch (error) {
+      // If workspace already exists, select it
+      await runTerraformCommand(
+        "workspace",
+        ["select", companyId],
+        terraformDir,
+        env,
+        deploymentId,
+        companyId,
+        (output) => {
+          logs += output + "\n";
+        }
+      );
+    }
+
     // Run terraform plan
     logs += "\n=== Running terraform plan ===\n";
     await runTerraformCommand(
@@ -325,6 +355,20 @@ const executeDestroy = async (deploymentId, companyId, drConfig) => {
       `company_${companyId}.tfvars`
     ); // Changed to terraform/tfvars subdirectory
     const terraformDir = path.join(process.cwd(), "..", "terraform");
+
+    // Select workspace for this company
+    logs += "=== Selecting workspace ===\n";
+    await runTerraformCommand(
+      "workspace",
+      ["select", companyId],
+      terraformDir,
+      env,
+      deploymentId,
+      companyId,
+      (output) => {
+        logs += output + "\n";
+      }
+    );
 
     // Run terraform destroy
     logs += "=== Running terraform destroy ===\n";

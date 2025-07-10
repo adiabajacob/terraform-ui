@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  COMPANY
+}
+
+enum DeploymentStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  role         Role    @default(COMPANY)
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Company {
+  id           String    @id @default(cuid())
+  name         String
+  contactEmail String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  users        User[]
+  deployments  Deployment[]
+  credentials  CompanyCredential[]
+
+  @@map("companies")
+}
+
+model Deployment {
+  id                String           @id @default(cuid())
+  companyId         String
+  company           Company          @relation(fields: [companyId], references: [id])
+  terraformVarsJson String           @db.Text
+  status            DeploymentStatus @default(PENDING)
+  logs              String?          @db.Text
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@map("deployments")
+}
+
+model CompanyCredential {
+  id          String  @id @default(cuid())
+  companyId   String  @unique
+  company     Company @relation(fields: [companyId], references: [id])
+  iamRoleArn  String
+  externalId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("company_credentials")
+}
