@@ -1,44 +1,97 @@
-# AWS RDS Disaster Recovery SaaS
+# Terraform DR Manager
 
-A multi-tenant SaaS application for automating AWS RDS Disaster Recovery configuration and deployment using Terraform. This platform allows companies to configure their DR setup via a web UI, store configurations securely, and trigger Terraform deployments with real-time log monitoring.
+A modern, multi-tenant SaaS application for automating AWS RDS Disaster Recovery configuration and deployment using Terraform. This platform allows companies to choose between different DR solutions, configure their setup via a beautiful web UI, and deploy infrastructure with real-time monitoring.
+
+## 🎨 Brand Identity
+
+This application features a cohesive brand design using:
+
+- **Primary Color**: `#08283B` (Dark Blue) - Used for main actions and navigation
+- **Secondary Color**: `#CC3F02` (Orange) - Used for accents and highlights
 
 ## 🚀 Features
 
+### Multi-Solution Disaster Recovery
+
+- **Read Replica Solution**: Real-time replication with automatic failover for high availability
+- **Snapshot-based Solution**: Automated snapshots with cross-region backup for cost-effective DR
+- **Dynamic Configuration Forms**: Solution-specific input fields and validation
+- **Separate Terraform Workspaces**: Isolated state management for each solution type
+
 ### Multi-Tenant Architecture
 
-- **Admin Users**: Manage companies and view all deployments
+- **Admin Users**: Manage companies and view all deployments across solutions
 - **Company Users**: Configure DR setups and manage their own deployments
+- **Role-based Access Control**: Secure separation between admin and company users
 
 ### Core Functionality
 
-- **DR Configuration Form**: Intuitive web interface for setting up disaster recovery
+- **Dynamic DR Configuration Form**: Intuitive web interface with solution selection
 - **Real-time Deployment Logs**: Live WebSocket updates during Terraform execution
 - **Secure AWS Integration**: Uses IAM roles with External ID for secure access
-- **Deployment History**: Track all deployments with detailed logs
+- **Deployment History**: Track all deployments with solution-specific details
 - **Automated Terraform Execution**: Backend handles infrastructure provisioning
+- **Infrastructure Destruction**: Safe cleanup of deployed resources
 
 ### Security Features
 
-- JWT-based authentication
-- bcrypt password hashing
-- AWS IAM role assumption with External ID
-- Temporary credential management
-- Role-based access control
+- JWT-based authentication with secure token management
+- bcrypt password hashing for user credentials
+- AWS IAM role assumption with External ID validation
+- Temporary credential management with automatic rotation
+- Role-based access control with company isolation
 
 ## 🏗️ Architecture
 
 ### Tech Stack
 
-- **Frontend**: React 18 + Vite + Tailwind CSS
-- **Backend**: Node.js + Express
+- **Frontend**: React 18 + Vite + Tailwind CSS with custom brand colors
+- **Backend**: Node.js + Express with TypeScript support
 - **Database**: PostgreSQL with Prisma ORM
-- **Real-time**: WebSockets for live updates
+- **Real-time**: WebSockets for live deployment updates
 - **Infrastructure**: Terraform for AWS resource management
-- **Authentication**: JWT tokens
+- **Authentication**: JWT tokens with role-based access
+
+### Project Structure
+
+```
+terraform-ui/
+├── client/                    # Frontend React application
+│   ├── components/           # Reusable UI components
+│   │   ├── DRConfigForm.tsx  # Dynamic DR configuration form
+│   │   ├── DeploymentList.tsx # Deployment history with solution icons
+│   │   ├── StatusBadge.tsx   # Status indicators with brand colors
+│   │   ├── Layout.tsx        # Main layout with navigation
+│   │   ├── NotificationToast.tsx # Toast notifications
+│   │   └── CompanyManagement.tsx # Admin company management
+│   ├── contexts/             # React contexts (Auth, WebSocket, Notifications)
+│   ├── pages/                # Page components
+│   │   ├── LoginPage.tsx     # Authentication with brand styling
+│   │   ├── CompanyDashboard.tsx # Company user dashboard
+│   │   └── AdminDashboard.tsx # Admin dashboard
+│   ├── tailwind.config.js    # Tailwind config with brand colors
+│   └── main.tsx              # Application entry point
+├── server/                   # Backend Node.js application
+│   ├── routes/               # API route handlers
+│   │   ├── auth.js           # Authentication endpoints
+│   │   ├── companies.js      # Company management
+│   │   └── deployments.js    # Deployment management
+│   ├── services/             # Business logic services
+│   │   ├── deployment.js     # Multi-solution deployment logic
+│   │   ├── aws.js            # AWS credential management
+│   │   └── websocket.js      # Real-time communication
+│   ├── middleware/           # Express middleware
+│   └── index.js              # Server entry point
+├── prisma/                   # Database schema and migrations
+│   └── schema.prisma         # Database schema with solution types
+├── terraform/                # Read Replica solution Terraform files
+├── snapshot-resources/       # Snapshot solution Terraform files
+└── README.md                 # This file
+```
 
 ### Database Schema
 
-```
+```sql
 User
 ├── id (String, Primary Key)
 ├── email (String, Unique)
@@ -58,6 +111,7 @@ Company
 Deployment
 ├── id (String, Primary Key)
 ├── companyId (String)
+├── solutionType (READ_REPLICA | SNAPSHOT)  -- NEW: Solution type
 ├── terraformVarsJson (JSON)
 ├── status (PENDING | RUNNING | SUCCEEDED | FAILED)
 ├── logs (Text)
@@ -83,15 +137,23 @@ CompanyCredential
 
 ```bash
 git clone <repository-url>
-cd aws-rds-dr-saas
+cd terraform-ui
+
+# Install backend dependencies
+cd server
+npm install
+
+# Install frontend dependencies
+cd ../client
 npm install
 ```
 
 ### 2. Environment Configuration
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the server directory:
 
 ```bash
+cd server
 cp .env.example .env
 ```
 
@@ -99,7 +161,7 @@ Configure the following variables:
 
 ```env
 # Database
-DATABASE_URL="postgresql://username:password@localhost:5432/rds_dr_saas"
+DATABASE_URL="postgresql://username:password@localhost:5432/terraform_dr"
 
 # JWT Secret (Change in production!)
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
@@ -118,27 +180,36 @@ FRONTEND_URL="http://localhost:5173"
 ### 3. Database Setup
 
 ```bash
+cd server
+
 # Generate Prisma client
-npm run db:generate
+npx prisma generate
 
 # Run database migrations
-npm run db:migrate
+npx prisma migrate dev
 
 # Seed admin user
-npm run db:seed
+npm run seed
 ```
 
 ### 4. Terraform Setup
 
-Ensure your Terraform configuration is in the `terraform/` directory. The application will execute Terraform commands from this location.
+The application supports two separate Terraform configurations:
+
+- **Read Replica Solution**: Located in `terraform/` directory
+- **Snapshot Solution**: Located in `snapshot-resources/` directory
+
+Each solution has its own state file and configuration.
 
 ### 5. Start the Application
 
 ```bash
-# Start backend server
-npm run server
+# Start backend server (from server directory)
+cd server
+npm start
 
-# In another terminal, start frontend
+# In another terminal, start frontend (from client directory)
+cd client
 npm run dev
 ```
 
@@ -162,37 +233,58 @@ After running the seed script, you can log in with:
 
 1. **Login** with admin credentials
 2. **Manage Companies**: Create and manage client companies
-3. **Monitor Deployments**: View all deployments across all companies
+3. **Monitor Deployments**: View all deployments across all companies and solutions
 4. **System Overview**: Access comprehensive dashboard with statistics
 
 ### For Company Users
 
 1. **Register** your company or login with existing credentials
-2. **Configure DR Setup**:
-   - Fill out the DR configuration form
+2. **Choose DR Solution**:
+   - **Read Replica**: For high availability with real-time replication
+   - **Snapshot**: For cost-effective cross-region backup
+3. **Configure DR Setup**:
+   - Fill out the solution-specific configuration form
    - Provide AWS IAM Role ARN and External ID
    - Specify database identifiers and regions
    - Set notification preferences
-3. **Deploy Infrastructure**: Submit configuration to trigger Terraform deployment
-4. **Monitor Progress**: Watch real-time logs during deployment
-5. **View History**: Access all previous deployments and their logs
+4. **Deploy Infrastructure**: Submit configuration to trigger Terraform deployment
+5. **Monitor Progress**: Watch real-time logs during deployment
+6. **View History**: Access all previous deployments with solution details
+7. **Destroy Infrastructure**: Safely remove deployed resources when needed
 
 ### DR Configuration Parameters
 
-| Parameter               | Description                   | Example                    |
-| ----------------------- | ----------------------------- | -------------------------- |
-| Primary AWS Region      | Main region for your database | `eu-central-1`             |
-| Read Replica Region     | DR region for read replica    | `eu-west-1`                |
-| Primary DB Identifier   | Name for primary database     | `company-primary-db`       |
-| Read Replica Identifier | Name for read replica         | `company-read-replica`     |
-| Instance Class          | RDS instance type             | `db.t3.micro`              |
-| VPC CIDR                | Network range for VPC         | `172.16.0.0/16`            |
-| Public Subnet CIDRs     | Subnet ranges                 | `["172.16.1.0/24"]`        |
-| Notification Email      | Alert email address           | `admin@company.com`        |
-| Environment             | Deployment environment        | `production`               |
-| Tag Name                | Resource tag identifier       | `CompanyDR`                |
-| IAM Role ARN            | AWS role for access           | `arn:aws:iam::123:role/DR` |
-| External ID             | Security identifier           | `unique-external-id`       |
+#### Read Replica Solution
+
+| Parameter               | Description                   | Example                |
+| ----------------------- | ----------------------------- | ---------------------- |
+| Primary AWS Region      | Main region for your database | `eu-central-1`         |
+| Read Replica Region     | DR region for read replica    | `eu-west-1`            |
+| Primary DB Identifier   | Name for primary database     | `company-primary-db`   |
+| Read Replica Identifier | Name for read replica         | `company-read-replica` |
+| Instance Class          | RDS instance type             | `db.t3.micro`          |
+| VPC CIDR                | Network range for VPC         | `172.16.0.0/16`        |
+| Public Subnet CIDRs     | Subnet ranges                 | `["172.16.1.0/24"]`    |
+| Notification Email      | Alert email address           | `admin@company.com`    |
+| Environment             | Deployment environment        | `production`           |
+| Tag Name                | Resource tag identifier       | `CompanyDR`            |
+
+#### Snapshot Solution
+
+| Parameter             | Description                   | Example              |
+| --------------------- | ----------------------------- | -------------------- |
+| Primary Region        | Main region for your database | `eu-central-1`       |
+| DR Region             | Backup region for snapshots   | `eu-west-1`          |
+| Primary DB Identifier | Name for primary database     | `company-primary-db` |
+| Project Name          | Project identifier            | `rds-dr`             |
+| SNS Email             | Notification email            | `admin@company.com`  |
+
+#### Common Parameters
+
+| Parameter    | Description         | Example                    |
+| ------------ | ------------------- | -------------------------- |
+| IAM Role ARN | AWS role for access | `arn:aws:iam::123:role/DR` |
+| External ID  | Security identifier | `unique-external-id`       |
 
 ## 🔒 AWS IAM Setup
 
@@ -236,37 +328,44 @@ The platform uses AWS STS to assume the customer's role:
 1. Customer provides IAM Role ARN and External ID
 2. Platform validates credentials before saving
 3. During deployment, platform assumes role to get temporary credentials
-4. Terraform executes with temporary credentials
+4. Terraform executes with temporary credentials in the appropriate workspace
 
 ## 🚀 Deployment Process
 
-### Automated Workflow
+### Multi-Solution Workflow
 
-1. **Configuration Submission**: User submits DR configuration form
-2. **Credential Validation**: System validates AWS IAM role access
-3. **File Generation**: Creates company-specific `.tfvars` file
-4. **Terraform Execution**:
+1. **Solution Selection**: User chooses between Read Replica or Snapshot solution
+2. **Configuration Submission**: User submits solution-specific DR configuration form
+3. **Credential Validation**: System validates AWS IAM role access
+4. **File Generation**: Creates company-specific `.tfvars` file in appropriate directory
+5. **Terraform Execution**:
    - Assumes AWS role with External ID
    - Exports temporary credentials
+   - Navigates to solution-specific Terraform directory
    - Runs `terraform init`
    - Runs `terraform apply` with auto-approve
-5. **Real-time Logging**: Streams stdout/stderr to frontend via WebSocket
-6. **Status Updates**: Updates deployment status in database
-7. **Log Storage**: Stores complete logs for future reference
+6. **Real-time Logging**: Streams stdout/stderr to frontend via WebSocket
+7. **Status Updates**: Updates deployment status in database
+8. **Log Storage**: Stores complete logs for future reference
 
 ### File Structure
 
 ```
-tfvars/
-├── company_123.tfvars
-├── company_456.tfvars
-└── ...
-
-terraform/
+terraform/                    # Read Replica solution
 ├── main.tf
 ├── variables.tf
 ├── outputs.tf
-└── ... (your terraform configuration)
+└── tfvars/
+    ├── company_123.tfvars
+    └── company_456.tfvars
+
+snapshot-resources/           # Snapshot solution
+├── main.tf
+├── variables.tf
+├── outputs.tf
+└── tfvars/
+    ├── company_789.tfvars
+    └── company_012.tfvars
 ```
 
 ## 🔧 API Endpoints
@@ -288,8 +387,9 @@ terraform/
 
 - `GET /api/deployments` - List deployments (filtered by role)
 - `GET /api/deployments/:id` - Get deployment details
-- `POST /api/deployments` - Create new deployment
+- `POST /api/deployments` - Create new deployment with solution type
 - `GET /api/deployments/:id/logs` - Get deployment logs
+- `POST /api/deployments/:id/destroy` - Destroy infrastructure
 
 ### Health Check
 
@@ -328,36 +428,21 @@ terraform/
 
 ## 🧪 Development
 
-### Project Structure
-
-```
-├── client/                    # Frontend React application
-│   ├── components/         # Reusable UI components
-│   ├── contexts/          # React contexts (Auth, WebSocket)
-│   ├── pages/             # Page components
-│   └── main.tsx           # Application entry point
-├── server/                # Backend Node.js application
-│   ├── routes/            # API route handlers
-│   ├── services/          # Business logic services
-│   ├── middleware/        # Express middleware
-│   └── index.js           # Server entry point
-├── prisma/                # Database schema and migrations
-├── terraform/             # Terraform configuration files
-├── tfvars/                # Generated tfvars files
-└── public/                # Static assets
-```
-
 ### Available Scripts
 
 ```bash
-npm run dev          # Start frontend development server
-npm run server       # Start backend server
-npm run build        # Build frontend for production
-npm run preview      # Preview production build
-npm run lint         # Run ESLint
-npm run db:migrate   # Run database migrations
-npm run db:generate  # Generate Prisma client
-npm run db:seed      # Seed database with admin user
+# Backend (from server directory)
+npm start              # Start backend server
+npm run dev            # Start backend with nodemon
+npm run db:migrate     # Run database migrations
+npm run db:generate    # Generate Prisma client
+npm run seed           # Seed database with admin user
+
+# Frontend (from client directory)
+npm run dev            # Start frontend development server
+npm run build          # Build frontend for production
+npm run preview        # Preview production build
+npm run lint           # Run ESLint
 ```
 
 ### Environment Variables
@@ -371,28 +456,45 @@ npm run db:seed      # Seed database with admin user
 - `NODE_ENV`: Environment (development/production)
 - `FRONTEND_URL`: Frontend URL for CORS
 
+## 🎨 UI/UX Features
+
+### Brand Integration
+
+- **Consistent Color Scheme**: Primary dark blue (#08283B) and secondary orange (#CC3F02)
+- **Modern Design**: Clean, professional interface with Tailwind CSS
+- **Responsive Layout**: Works seamlessly on desktop and mobile devices
+- **Intuitive Navigation**: Clear separation between admin and company user interfaces
+
+### User Experience
+
+- **Dynamic Forms**: Solution-specific configuration forms with real-time validation
+- **Real-time Updates**: Live deployment status and log streaming
+- **Solution Icons**: Visual indicators for different DR solutions
+- **Status Badges**: Color-coded deployment status indicators
+- **Toast Notifications**: User-friendly success and error messages
+
 ## 🛡️ Security Considerations
 
 ### Authentication & Authorization
 
-- JWT tokens with expiration
-- Role-based access control (RBAC)
+- JWT tokens with expiration and secure storage
+- Role-based access control (RBAC) with company isolation
 - Password hashing with bcrypt
-- Protected API routes with middleware
+- Protected API routes with middleware validation
 
 ### AWS Security
 
-- No static AWS credentials stored
-- IAM role assumption with External ID
-- Temporary credential usage
-- Principle of least privilege
+- No static AWS credentials stored in application
+- IAM role assumption with External ID validation
+- Temporary credential usage with automatic rotation
+- Principle of least privilege for all AWS permissions
 
 ### Data Protection
 
-- Environment variable configuration
-- Secure credential storage
-- Input validation and sanitization
-- Rate limiting on API endpoints
+- Environment variable configuration for sensitive data
+- Secure credential storage with encryption
+- Input validation and sanitization on all endpoints
+- Rate limiting on API endpoints to prevent abuse
 
 ## 🚨 Troubleshooting
 
@@ -412,35 +514,58 @@ DATABASE_URL="postgresql://user:pass@localhost:5432/dbname"
 
 - Verify AWS credentials and permissions
 - Check IAM role trust relationship
-- Ensure External ID matches
+- Ensure External ID matches exactly
 - Review Terraform configuration syntax
+- Check solution-specific Terraform directory
 
 **WebSocket Connection Issues**
 
 - Check proxy configuration in vite.config.ts
 - Verify WebSocket URL in frontend
-- Ensure backend server is running
+- Ensure backend server is running on correct port
 
 **Authentication Problems**
 
-- Verify JWT_SECRET is set
-- Check token expiration
-- Ensure admin user exists (run seed)
+- Verify JWT_SECRET is set correctly
+- Check token expiration settings
+- Ensure admin user exists (run seed script)
+- Clear browser cache and local storage
+
+**Frontend Performance Issues**
+
+- Tailwind CSS configuration optimized to exclude node_modules
+- Check for large bundle sizes
+- Verify Vite configuration
 
 ### Logs and Debugging
 
-- Backend logs: Check console output from `npm run server`
-- Frontend logs: Open browser developer tools
-- Database logs: Check PostgreSQL logs
-- Terraform logs: Available in deployment logs section
+- **Backend logs**: Check console output from `npm run server`
+- **Frontend logs**: Open browser developer tools
+- **Database logs**: Check PostgreSQL logs
+- **Terraform logs**: Available in deployment logs section
+- **WebSocket logs**: Check browser network tab
 
-## 📝 Contributing
+## 📝 Recent Updates
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### Version 2.0 - Multi-Solution DR System
+
+- ✅ **Multi-Solution Support**: Added Read Replica and Snapshot-based DR solutions
+- ✅ **Dynamic Forms**: Solution-specific configuration forms with validation
+- ✅ **Separate Terraform Workspaces**: Isolated state management for each solution
+- ✅ **Brand Integration**: Implemented custom brand colors throughout the UI
+- ✅ **Project Restructuring**: Separated frontend and backend into distinct directories
+- ✅ **Performance Optimization**: Fixed Tailwind CSS configuration for faster builds
+- ✅ **Enhanced UI/UX**: Modern design with consistent branding
+- ✅ **TypeScript Improvements**: Better type safety and error handling
+- ✅ **Infrastructure Destruction**: Added safe cleanup functionality
+
+### Version 1.0 - Initial Release
+
+- ✅ **Multi-tenant Architecture**: Admin and company user roles
+- ✅ **Real-time Deployment Monitoring**: WebSocket-based log streaming
+- ✅ **Secure AWS Integration**: IAM role assumption with External ID
+- ✅ **Terraform Automation**: Automated infrastructure provisioning
+- ✅ **Deployment History**: Complete audit trail of all deployments
 
 ## 📄 License
 
@@ -450,24 +575,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For support and questions:
 
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the API documentation
-- Consult the AWS IAM setup guide
+1. Check the troubleshooting section above
+2. Review the API documentation
+3. Check the deployment logs for specific errors
+4. Contact the development team
 
 ---
 
-**⚠️ Production Deployment Notes:**
-
-- Change default admin password
-- Use strong JWT secrets
-- Configure proper SSL/TLS
-- Set up monitoring and logging
-- Review and harden security settings
-- Use environment-specific configurations# terraform-ui
-
-# terraform-ui
-
-# terraform-ui
-
-# terraform-ui
+**Built with ❤️ using React, Node.js, and Terraform**
